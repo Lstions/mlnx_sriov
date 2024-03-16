@@ -6,9 +6,9 @@ configure_dev () {
     local num_of_vfs="$2"
     local devid=$(echo $1 | cut -d_ -f2)
     local max_id="0"
-    local num_vfs_path="/sys/class/infiniband/$1/device/mlx5_num_vfs"
+    local num_vfs_path="/sys/class/infiniband/$1/device/sriov_numvfs"
     if [[ "$(cat $num_vfs_path)" -lt "$num_of_vfs" ]]; then
-        echo $num_of_vfs > /sys/class/infiniband/$1/device/mlx5_num_vfs
+        echo $num_of_vfs > /sys/class/infiniband/$1/device/sriov_numvfs
     fi
     let "max_id=$num_of_vfs-1"
     for vf in $(seq 0 $max_id); do
@@ -28,6 +28,9 @@ configure_dev () {
         pcie_addr="$(readlink -f /sys/class/infiniband/$1/device/virtfn${vf} | awk -F/ '{print $NF}')"
         echo $pcie_addr > /sys/bus/pci/drivers/mlx5_core/unbind
         echo $pcie_addr > /sys/bus/pci/drivers/mlx5_core/bind
+        # Up interfaces
+        iface_name="$(ibdev2netdev -v |grep -e ${pcie_addr} | awk '{print $(NF-1);}')"
+        ip link set $iface_name up
     done
 }
 # if specific devices are provided, only those will be configured
